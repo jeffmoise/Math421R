@@ -1,0 +1,263 @@
+---
+output: # rmarkdown::github_document
+  pdf_document: default
+  word_document: default
+  html_document:
+title: "Assignment 4.  Data Wrangling with Dplyr- Jeff Moise"
+---
+
+Questions
+---
+```{r}
+library(dplyr)
+```
+
+1. Compute the follows using `%>%` operator. **Notice that** 
+
+  - `x %>%\ f = f(x)`
+  - `x %>% f %>% g = g(f(x))` and 
+  - `x %>% f(y) = f(x,y)`
+  
+  a. $\sin(2019)$
+```{r}
+2019 %>% sin()
+```
+  
+  b. $\sin(\cos(2019))$ 
+```{r}
+2019 %>%
+  sin() %>% cos()
+```
+
+  c. $\sin(\cos(\tan(\log(2019))))$ 
+
+```{r}
+2019 %>% sin() %>% cos() %>% tan() %>% log()
+```
+
+  d. $\log_2(2019)$
+```{r}
+2019 %>% log2()
+```
+
+2. Fixing the `SEX`, `AGE` and `TRAV_SP` following the steps in Assignment 2 (This time, do it on the entire dataset instead of the sample dataset). 
+```{r}
+path <- "C:/Users/student/Documents/RStudio/c2015.xlsx"
+library(readxl)
+df=read_excel(path)
+class(df)
+
+df<-df %>% 
+  mutate(SEX=case_when(
+    SEX=='Not Rep' ~ 'Female',
+    SEX=='Unknown' ~ 'Female',
+    SEX=='Male' ~ 'Male'))
+table(df$SEX)
+
+df<-df %>% 
+  mutate(AGE=case_when(
+    AGE=='Less than 1' ~ '0',
+    TRUE ~ (AGE)))
+df$AGE <- as.numeric(df$AGE)
+table(df$AGE)
+
+df$SEX[df$AGE=='Less than 1']= '0'
+df$AGE <- as.numeric(df$AGE)
+avgAge<-mean(df$AGE[!is.na(df$AGE)])
+df$AGE[is.na(df$AGE)]<- avgAge
+sum(is.na(df$AGE))
+
+
+library(stringr)
+df$TRAV_SP[df$TRAV_SP=='Stopped'] <- '0'
+df$TRAV_SP[df$TRAV_SP=='Not Rep' | df$TRAV_SP=='Unknown'] <- NA
+df$TRAV_SP<- stringr::str_replace(df$TRAV_SP," MPH", "")
+df$TRAV_SP <- as.numeric(df$TRAV_SP)
+mean(df$TRAV_SP, na.rm = TRUE)
+
+
+```
+
+3. Calculate the average age and average speed of female in the accident happened in the weekend. 
+```{r}
+
+
+df2<- df %>% 
+  mutate(
+   timeofweek = case_when( 
+    DAY_WEEK=="Monday" ~ "weekday",
+        DAY_WEEK=="Tuesday" ~ "weekday",
+        DAY_WEEK=="Wednesday" ~ "weekday",
+        DAY_WEEK=="Thursday" ~ "weekday",
+        DAY_WEEK=="Friday" ~ "weekday",
+    DAY_WEEK=="Saturday" ~ "weekend",
+      DAY_WEEK=="Sunday" ~ "weekend"))
+
+head(df2)
+
+df2 %>% 
+  filter(SEX=='Female' & DAY_WEEK=="weekend") %>% 
+  summarize(mean(TRAV_SP, na.rm=TRUE))
+```
+
+_Notice: These questions are to practice `select_if` and `summarise_if`, `summarise_all`... functions in dplyr Check out the uses of these functions [here](https://dplyr.tidyverse.org/reference/select_all.html) and [here](https://dplyr.tidyverse.org/reference/summarise_all.html)._
+
+
+4. Use `select_if` and `is.numeric` functions to create a dataset with only numeric variables. Print out the names of all numeric variables
+```{r}
+select_if(df2, is.numeric)
+```
+
+5. Calculate the mean of all numeric variables using `select_if` and `summarise_all` 
+```{r}
+df2 %>%
+select_if(list(is.numeric)) %>%
+summarise_all(mean)
+```
+
+6. We can shortcut 3 and 4 by using `summarise_if`:  Use `summarise_if` to Calculate the mean of all numeric variables. (You may need to use `na.rm = TRUE` to ignore the NAs)
+
+```{r}
+df2 %>%
+summarise_if(is.numeric,mean, na.rm=TRUE)
+```
+
+7. Use `summarise_if` to calculate the median of all numeric variables.
+```{r}
+df2 %>% 
+  summarise_if(is.numeric, median, na.rm=TRUE)
+```
+
+
+8. Use `summarise_if` to calculate the standard deviation of all numeric variables. (`sd` function for standard deviation)
+```{r}
+df2 %>% 
+  summarise_if(is.numeric,sd,na.rm=TRUE)
+```
+
+
+9. Use `summarise_if` to calculate the number of missing values for each numeric variables. *Hint:* Use `~sum(is.na(.))` 
+```{r}
+df2 %>% 
+  summarise_if(is.numeric, ~sum(is.na(.)))
+```
+
+10. Calculate the `log` of the average for each numeric variable. 
+```{r}
+df2 %>%
+  summarise_if(is.numeric,~log(mean(.)))
+```
+
+
+11. You will notice that there is one NA is produced in Fix this by calculating the log of the absolute value average for each numeric variable. 
+
+```{r}
+df2 %>%
+  summarise_if(is.numeric,~log(abs(mean(.))))
+```
+
+
+12. Calculate the number of missing values for each categorical variables using `summarise_if`
+```{r}
+df2 %>% 
+  summarise_if(is.character, ~sum(is.na(.)))
+```
+
+
+13. Calculate the number of missing values for each categorical variables using `summarise_all`
+```{r}
+df2 %>%
+select_if(is.character) %>%
+summarise_all(~sum(is.na(.)))
+```
+
+
+14. Calculate the number of states in the dataset. **Hint: You can use `length(table())`
+```{r}
+df2 %>%
+  summarise_all(~length(table(STATE)))
+
+# could also use summarise_at()
+df2 %>%
+  summarise_at(c("STATE"),~length(table(STATE)))
+```
+
+
+15. Calculate the number of uniques values for each categorical variables using `summarise_if`.
+```{r}
+df2 %>% 
+  summarise_if(is.character, ~length(table(.)))
+```
+
+
+16. Calculate the number of uniques values for each categorical variables using `summarise_all`.
+```{r}
+df2 %>% 
+  select_if(is.character) %>%
+  summarise_all(~length(table(.)))
+```
+
+
+17. Print out the names of all variables that have more than 30 distinct values
+```{r}
+names(df2 %>%
+  select_if(~length(table(.))>30))
+```
+
+
+18. Print out the names of all categorical variables that more than 30 distinct values
+```{r}
+names(df2 %>% select_if(is.character) %>% 
+       select_if(~length(table(.))>30))
+```
+
+19. Print out the names of all numeric variables that has the maximum values greater than 30
+```{r}
+names(df2 %>% select_if(is.numeric) %>% 
+       select_if(~max(table(.))>30))
+```
+
+20. Calculate the mean of all numeric variables that has the maximum values greater than 30 using `summarise_if'
+```{r}
+df2 %>% select_if(is.numeric) %>% 
+       summarize_if(~max(table(.))>30, mean, na.rm=1)
+```
+
+21. Calculate the mean of all numeric variables that has the maximum values greater than 30 using `summarise_all'
+```{r}
+names(df2 %>% select_if(is.numeric) %>%
+        select_if(~max(table(.))>30) %>%
+        summarize_all(mean,na.rm=1))
+```
+
+
+22. Create a dataset containing variables with standard deviation greater than 10. Call this data `d1`
+```{r}
+d0= names(df2 %>% select_if(is.numeric))[df2 %>% select_if(is.numeric) %>%
+  summarise_all(sd, na.rm=1) > 10]
+
+d1 = df2 %>% select(d0)
+
+head(d1)
+```
+
+
+23. Centralizing a variable is subtract it by its mean. Centralize the variables of `d1` using `mutate_all`. Check the means of all centralized variables to confirm that they are all zeros. 
+```{r}
+d1 %>%
+  mutate_all(funs(.-mean(.,na.rm=1))) %>%
+  summarize_all(mean, na.rm=1)
+```
+
+
+24. Standarizing a variable is to subtract it to its mean and then divide by its standard deviation.  Standardize the variables of `d1` using `mutate_all`. Check the means and standard deviation of all centralized variables to confirm that they are all zeros (for the means) and ones (for standard deviation). 
+
+```{r}
+d1 %>%
+  mutate_all(funs(.-mean(.,na.rm=1))) %>%
+  mutate_all(funs(./sd(.))) %>%
+  summarize_all(c(mean,sd), na.rm=1)
+```
+
+
+
